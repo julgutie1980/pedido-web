@@ -1,0 +1,28 @@
+# Riesgos de Pedidos Legado
+
+<!--
+Etapa 2 · Encontrar.
+Un riesgo es algo que puede salir mal en producción o al migrar.
+- Evidencia: archivo:línea. Sin evidencia, es una sospecha, no un riesgo.
+- Categoría: Seguridad · Datos e integridad · Fechas · Mantenibilidad.
+- Prioridad: Alta · Media · Baja (¿qué tan grave es y qué tan probable?).
+Punto de control E2: al menos 5 riesgos con evidencia y prioridad.
+-->
+
+| ID | Riesgo | Evidencia (archivo:línea) | Categoría | Prioridad |
+|---|---|---|---|---|
+| RS-01 | SQL armado concatenando lo que escribe el usuario, con riesgo de inyección. `EscapaComillas` existe pero nadie la llama. Una observación con apóstrofe rompe el INSERT del pedido. En el RUT el riesgo es menor porque pasa antes por `ValidaRut` (por verificar). | legado/src/UFrmPedidos.pas:102, :152, :261-262; legado/src/UFrmInformes.pas:69; legado/src/UFrmClientes.pas:76-77; legado/src/UDMPrincipal.pas:85; legado/src/UStock.pas:87; legado/src/UFrmProductos.pas:61; legado/src/UUtilidades.pas:164 (`EscapaComillas`, sin uso) | Seguridad | Alta |
+| RS-02 | La clave de la base de datos está escrita en el código fuente | legado/src/UDMPrincipal.pas:41 (`CLAVE_BD = '…'`); :59 (`Session.AddPassword(CLAVE_BD)`) | Seguridad | Alta |
+| RS-03 | El control de acceso es débil. El usuario se escribe sin contraseña. Escribir ADMIN o JEFEVENTAS da nivel 9; vacío entra como VENTAS. El nivel 2 nunca se asigna, aunque Informes y el marcado VIP lo exigen. | legado/src/UFrmPrincipal.pas:46, :48, :49-50, :95; legado/src/UFrmClientes.pas:143; legado/src/UGlobales.pas:13 (el comentario dice 2 = supervisor, pero el código nunca lo asigna) | Seguridad | Alta |
+| RS-04 | El pedido se graba sin transacción (`TODO transaccion`): encabezado con TOTAL 0, líneas, UPDATE del total y stock. Si algo falla a mitad de camino, quedan pedidos incompletos o con total 0. | legado/src/UFrmPedidos.pas:255, :262-263, :272, :320, :324 | Datos e integridad | Alta |
+| RS-05 | Folio e ID de cliente con MAX+1. Dos puestos que graban a la vez pueden obtener el mismo número y chocar. | legado/src/UFrmPedidos.pas:249-251; legado/src/UFrmClientes.pas:160-163 | Datos e integridad | Alta |
+| RS-06 | Los movimientos de stock se escriben en MOV_STOCK, que no está en el esquema. Un `except end` vacío oculta el error, así que probablemente nunca hubo registro de movimientos. | legado/src/UStock.pas:85, :89-90; legado/db/esquema-dbisam.sql:4-74 (sin MOV_STOCK) | Datos e integridad | Alta |
+| RS-07 | El stock se lee y después se escribe un valor absoluto: dos ventas simultáneas pueden pisarse. Sin stock, solo aparece un mensaje, pero el pedido ya quedó confirmado (ESTADO 'C'). Los VIP pueden llegar a −20. | legado/src/UStock.pas:38-39, :43, :51, :69-72 | Datos e integridad | Alta |
+| RS-08 | El descuento se calcula en dos lugares que no coinciden: al grabar usa `>=` y Navidad; en pantalla usa `>` y no tiene Navidad. La diferencia solo se avisa con `gModoPrueba`, que nunca se activa (por verificar). El comentario «5% sobre 400.000» contradice el código. | legado/src/UFrmPedidos.pas:296, :298, :304, :330; legado/src/UCalculoTotales.pas:77, :79; legado/src/UGlobales.pas:34; comentario legado/src/UCalculoTotales.pas:4 | Datos e integridad | Alta |
+| RS-09 | El RUT se valida en dos lugares y no coinciden: RutOk (clientes) y ValidaRut (pedidos) tienen invertidos 0 y K. Un cliente con DV 0 o K no se podrá buscar al tomar el pedido. Además, el RUT no se normaliza al guardar ni al buscar (por verificar). | legado/src/UFrmClientes.pas:193-196; legado/src/UUtilidades.pas:73-76; legado/src/UFrmPedidos.pas:91, :102 | Datos e integridad | Alta |
+| RS-10 | El dinero es `Double`, con un redondeo no estándar `Trunc(x + 0.49)` copiado en dos funciones. Los montos entran al SQL con `FloatToStr`, que depende de la configuración regional (con coma decimal rompería el SQL; por verificar). | legado/src/UCalculoTotales.pas:12, :19-26, :50; legado/src/UUtilidades.pas:30; legado/src/UFrmPedidos.pas:199, :271, :320 | Datos e integridad | Media |
+| RS-11 | El informe usa IVA fijo de 19 % e ignora TASA_IVA. Su «Neto» incluye el flete, porque TOTAL lo trae. | legado/src/UFrmInformes.pas:92; legado/src/UFrmPrincipal.pas:64; legado/src/UFrmPedidos.pas:319 | Datos e integridad | Media |
+| RS-12 | Año de 2 dígitos con ventana en 50 («49» → 2049, «50» → 1950). La fecha se lee por posiciones fijas con `StrToInt`, sin validar, y lanza una excepción si el formato no calza. El CSV para contabilidad sale con año de 2 dígitos. | legado/src/UUtilidades.pas:102, :103-106, :112; legado/src/UFrmInformes.pas:52-53, :63-64, :119 | Fechas | Media |
+| RS-13 | El corte de las 18:00 usa el reloj del PC local y no considera feriados. Un pedido de fin de semana antes de las 18 queda con fecha de sábado o domingo. | legado/src/UUtilidades.pas:124, :133, :136-137; legado/src/UFrmPedidos.pas:240 | Fechas | Media |
+| RS-14 | El bloqueo por deuda usa `DaysBetween` sin signo, así que también bloquea vencimientos a más de 60 días en el futuro. Con FECHA_VENCIMIENTO nula (año 1899), bloquea siempre que haya saldo (por verificar). | legado/src/UFrmPedidos.pas:111-112 | Fechas | Media |
+| RS-15 | Globales que cambian desde varios lugares; ruta e impresora fijas; nombres opacos (`Proc2`, `Calc3`); reglas metidas en los formularios (40 líneas, $30.000, región 13, regiones 1–16); `gDescNavidad` nunca se activa, y `gImpresora` y `gFechaSistema` no se leen. | legado/src/UGlobales.pas:12-21, :33, :36-37; legado/src/UDMPrincipal.dfm:12; legado/src/UFrmInformes.pas:111; legado/src/UFrmPedidos.pas:214, :231, :367; legado/src/UCalculoTotales.pas:48; legado/src/UFrmClientes.pas:148-149 | Mantenibilidad | Baja |
