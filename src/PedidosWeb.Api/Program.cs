@@ -3,6 +3,7 @@ using PedidosWeb.Core.Pedidos;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<IPedidoRepositorio, PedidoRepositorioEnMemoria>();
+builder.Services.AddSingleton<ListadoPedidos>();
 
 var app = builder.Build();
 
@@ -15,8 +16,24 @@ app.MapGet("/api/pedidos/{id:int}", (int id, IPedidoRepositorio repositorio) =>
         ? Results.Ok(pedido)
         : Results.NotFound());
 
-// HU-01 · Listar pedidos con filtros: PENDIENTE.
-// Se construye en el taller de la Unidad 2, a partir de specs/HU-01-listar-pedidos/spec.md.
+// HU-01 · Listar pedidos con filtros (specs/HU-01-listar-pedidos/spec.md).
+// La lógica vive en Core (ListadoPedidos); aquí solo se traduce el resultado a HTTP.
+app.MapGet("/api/pedidos", (
+    string? clienteId,
+    string? cliente,
+    string? estado,
+    string? desde,
+    string? hasta,
+    int? pagina,
+    int? tamano,
+    ListadoPedidos listado) =>
+{
+    var resultado = listado.Listar(new ConsultaPedidos(clienteId, cliente, estado, desde, hasta, pagina, tamano));
+
+    return resultado.EsValido
+        ? Results.Ok(resultado.Pagina)
+        : Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Filtros inválidos", detail: resultado.Error);
+});
 
 app.Run();
 
