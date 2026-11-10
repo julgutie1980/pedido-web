@@ -35,7 +35,7 @@ public class ClientesService
     }
 
     // si existe y está activo
-    public bool proc3(string id)
+    public bool EstaActivo(string id)
     {
         Cliente? c = null;
         for (int i = 0; i < _l.Count; i++)
