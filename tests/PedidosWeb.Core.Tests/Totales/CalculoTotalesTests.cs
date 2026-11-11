@@ -35,4 +35,14 @@ public class CalculoTotalesTests
         Assert.True(caso.Total == resultado.Total,
             $"{caso}: total esperado {caso.Total}, obtenido {resultado.Total}");
     }
+
+    // CA-01 · meta de la guía: la columna total suma 58.202.135, igual al legado.
+    [Fact]
+    public void CalcularTodos_GoldenMaster_SumaTotal58202135()
+    {
+        var suma = GoldenMasterCsv.Leer()
+            .Sum(c => CalculoTotales.Calcular(c.Lineas, c.EsVip, c.Region, c.FleteBase, c.TasaIva).Total);
+
+        Assert.Equal(58_202_135m, suma);
+    }
 }
