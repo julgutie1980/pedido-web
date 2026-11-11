@@ -33,8 +33,10 @@ public static class CalculoTotales
         return new ResultadoTotales(subtotal, baseDescuento, porcDescuento, descuento, flete, neto, iva, total);
     }
 
-    // UCalculoTotales.pas:48-51 · Calc3. R05: suma 0,49 y trunca (x,50 baja). Se replica tal cual.
-    private static decimal RedondearAlPeso(decimal valor) => Math.Truncate(valor + 0.49m);
+    // UCalculoTotales.pas:48-51 · Calc3. R05 corregido (U5 · Etapa 3): redondeo al peso con ,50 hacia arriba.
+    // El legado hacía Trunc(x + 0.49), que bajaba los ,50. Ver docs/migracion/defectos-corregidos.md.
+    private static decimal RedondearAlPeso(decimal valor) =>
+        Math.Round(valor, 0, MidpointRounding.AwayFromZero);
 
     // UCalculoTotales.pas:53-60
     private static decimal Subtotal(IReadOnlyList<LineaCalculo> lineas) =>
