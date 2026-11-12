@@ -59,4 +59,26 @@ public class FiltroPedidosTests
         Assert.Contains("'desde' (2026-03-31)", ex.Message);
         Assert.Contains("'hasta' (2026-03-01)", ex.Message);
     }
+
+    // Revisión · hallazgo IA 1 (aceptado): el guard de nulos queda cubierto.
+    [Fact]
+    public void EntreFechas_PedidosNulo_LanzaArgumentNullException()
+    {
+        var ex = Assert.Throws<ArgumentNullException>(
+            () => FiltroPedidos.EntreFechas(null!, Desde, Hasta));
+
+        Assert.Equal("pedidos", ex.ParamName);
+    }
+
+    // Revisión · hallazgo humano: un rango de un solo día es válido y devuelve los pedidos de ese día.
+    [Fact]
+    public void EntreFechas_DesdeIgualAHasta_DevuelveLosPedidosDeEseDia()
+    {
+        var delDia = PedidoDel(7, Desde);
+        var otroDia = PedidoDel(8, Desde.AddDays(1));
+
+        var resultado = FiltroPedidos.EntreFechas([delDia, otroDia], Desde, Desde);
+
+        Assert.Equal([delDia], resultado);
+    }
 }

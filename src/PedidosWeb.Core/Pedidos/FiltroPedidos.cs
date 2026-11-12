@@ -8,8 +8,6 @@ namespace PedidosWeb.Core.Pedidos;
 /// </summary>
 public static class FiltroPedidos
 {
-    private const string FormatoFecha = "yyyy-MM-dd";
-
     /// <summary>
     /// Devuelve, en el mismo orden de entrada, los pedidos cuya <see cref="Pedido.Fecha"/>
     /// está entre <paramref name="desde"/> y <paramref name="hasta"/> (CA-01, CA-02 y CA-03).
@@ -31,5 +29,5 @@ public static class FiltroPedidos
     }
 
     private static string Formatear(DateOnly fecha) =>
-        fecha.ToString(FormatoFecha, CultureInfo.InvariantCulture);
+        fecha.ToString(ListadoPedidos.FormatoFecha, CultureInfo.InvariantCulture);
 }
