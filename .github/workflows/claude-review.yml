@@ -1,0 +1,53 @@
+# Claude revisa cada PR hacia main con las reglas de REVIEW.md (U7 · Etapa 1).
+# Las reglas se leen desde main: el checkout es de la rama base, no del PR,
+# así un PR no puede aflojar las reglas que lo revisan. El cambio se lee con gh pr diff.
+# Corre al abrir, reabrir o marcar listo el PR (no en cada push) para cuidar la cuota.
+# Usa el secreto CLAUDE_CODE_OAUTH_TOKEN de la U6. El token NUNCA va en este archivo.
+# Regla del curso: la IA comenta; tú decides.
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+    branches: [main]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    name: Revisión de Claude
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+    steps:
+      - name: Obtener las reglas desde main (rama base)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+
+      - name: Claude revisa el PR
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: ${{ github.event.pull_request.number }}
+
+            Eres el revisor de Pedidos Web. Lee REVIEW.md y AGENTS.md de este checkout (son los de main)
+            y síguelos al pie de la letra: qué es Importante, los 3 chequeos de «Revisar siempre»,
+            «No reportar» y el tope de 5 detalles.
+            Lee el cambio con `gh pr view` y `gh pr diff`; la spec de la historia viene en ese diff.
+            Deja cada hallazgo como comentario en línea en su archivo:línea y, al final, un comentario
+            de resumen con `gh pr comment` y el veredicto. En español. Nunca escribas «@claude».
+          claude_args: |
+            --max-turns 10
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment *),Bash(gh pr diff *),Bash(gh pr view *),Read,Grep,Glob"
+            --disallowedTools "Edit,Write"
