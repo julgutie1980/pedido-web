@@ -1,0 +1,39 @@
+# CI · compila y prueba Pedidos Web en cada push y en cada PR hacia main.
+# U6 · Etapa 2: «Que ningún cambio llegue a main sin pruebas».
+# Permisos mínimos, timeout y versiones fijas. Este workflow no usa secretos.
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build y test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v6
+
+      - name: Instalar .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.403'
+
+      - name: Restaurar
+        run: dotnet restore PedidosWeb.sln
+
+      - name: Compilar
+        run: dotnet build PedidosWeb.sln --no-restore -c Release
+
+      - name: Probar
+        run: dotnet test PedidosWeb.sln --no-build -c Release --logger "console;verbosity=normal"
